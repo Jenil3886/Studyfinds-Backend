@@ -27,21 +27,21 @@ class AuthController {
   }
 
   static async login(req, res) {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
     try {
-      const user = await UserModel.findByUsername(username);
+      const user = await User.findOne({ email });
+
       if (!user) {
-        return res.status(400).json({ message: "User not found" });
+        return res.status(400).json({ message: "User not found with this email!" });
       }
 
-      const match = await UserModel.verifyPassword(password, user.password);
-      if (!match) {
-        return res.status(401).json({ message: "Invalid credentials" });
+      if (user.password !== password) {
+        return res.status(401).json({ message: "Incorrect password!" });
       }
 
       const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, {
-        expiresIn: "1h",
+        expiresIn: "30d",
       });
 
       res.json({ token });
@@ -55,6 +55,58 @@ class AuthController {
       message: "Protected data",
       user: req.user,
     });
+  }
+
+  static async forgotPassword(req, res) {
+    const { email } = req.body;
+
+    try {
+      const user = await User.findOne({ email });
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Generate password reset token
+      const resetToken = crypto.randomBytes(20).toString("hex");
+      user.resetPasswordToken = resetToken;
+      user.resetPasswordExpires = Date.now() + 3600000; // Expires in 1 hour
+      await user.save();
+
+      // Send password reset email (replace with your email service)
+      const resetLink = `http://your-frontend-url/reset-password?token=${resetToken}`;
+      console.log("Password reset link:", resetLink); // For demonstration
+
+      res.json({ message: "Password reset link sent to your email" });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  static async resetPassword(req, res) {
+    const { token } = req.query;
+    const { newPassword } = req.body;
+
+    try {
+      const user = await User.findOne({
+        resetPasswordToken: token,
+        resetPasswordExpires: { $gt: Date.now() },
+      });
+
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired token" });
+      }
+
+      // Update password and clear reset fields
+      user.password = newPassword; // Assuming your model handles password hashing
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save();
+
+      res.json({ message: "Password reset successful" });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
   }
 }
 
