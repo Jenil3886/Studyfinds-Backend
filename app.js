@@ -1,19 +1,20 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
-const authRoutes = require("./src/routes/auth.routes");
+const cookieParser = require("cookie-parser");
+const appRoutes = require("./src/routes/index.routes");
 
 dotenv.config();
 
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
-// In your server file (app.js or server.js)
 const cors = require("cors");
 app.use(
 	cors({
-		origin: "http://localhost:5173", // Your frontend URL
+		origin: "http://localhost:5173", // frontend URL
 		credentials: true,
 	})
 );
@@ -37,7 +38,7 @@ if (!mongoUrl) {
 connectToMongoDb(mongoUrl);
 
 // Routes
-app.use("/api", authRoutes);
+app.use("/api", appRoutes);
 
 module.exports = {
 	app,
